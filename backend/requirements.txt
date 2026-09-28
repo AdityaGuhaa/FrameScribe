@@ -1,0 +1,34 @@
+# VideoAI Backend Dependencies
+
+# Speech-to-Text (Whisper via CTranslate2 - 4x faster, 2x less memory)
+faster-whisper>=1.1.0
+
+# Web Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+websockets>=12.0
+
+# Data Validation
+pydantic>=2.9.0
+
+# Audio/Video Processing
+ffmpeg-python>=0.2.0
+
+# Speaker Diarization (optional - requires HuggingFace token)
+pyannote.audio>=3.3.0
+torch>=2.0.0
+torchaudio>=2.0.0
+
+# Scene Detection
+scenedetect[opencv]>=0.6.4
+
+# Subtitle Formats
+pysrt>=1.1.2
+webvtt-py>=0.5.1
+
+# Database
+aiosqlite>=0.20.0
+
+# Utilities
+python-dotenv>=1.0.0
