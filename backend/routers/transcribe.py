@@ -42,33 +42,40 @@ async def transcribe_video(background_tasks: BackgroundTasks, file: UploadFile =
         await db.save_project(job_id, file.filename, 0.0, "pending", "")
 
     def status_callback(status: JobStatus):
+        """Update in-memory job status. Called from worker threads, so no async ops here."""
         jobs[job_id] = status
-        if db:
-            asyncio.create_task(db.update_status(job_id, status.status))
 
     async def process_task():
         try:
             if pipeline:
                 result = await pipeline.process(file_path, job_id, status_callback)
                 results[job_id] = result
-                
+
                 result_dir = "data/results"
                 os.makedirs(result_dir, exist_ok=True)
                 result_path = os.path.join(result_dir, f"{job_id}.json")
                 with open(result_path, "w") as f:
-                    f.write(result.model_dump_json())
-                    
+                    f.write(result.model_dump_json(indent=2))
+
                 if db:
-                    # Note: We rely on pipeline to provide duration in result or default to 0.0
-                    await db.save_project(job_id, file.filename, 0.0, "completed", result_path)
+                    await db.save_project(
+                        job_id, file.filename,
+                        result.duration_seconds, "completed", result_path
+                    )
             else:
                 logger.error("Pipeline not initialized")
-                jobs[job_id].status = "failed"
+                jobs[job_id] = JobStatus(
+                    job_id=job_id, status="failed",
+                    error="Pipeline not initialized", current_stage="failed"
+                )
                 if db:
                     await db.update_status(job_id, "failed")
         except Exception as e:
-            logger.error(f"Pipeline processing failed: {e}")
-            jobs[job_id].status = "failed"
+            logger.error(f"Pipeline processing failed: {e}", exc_info=True)
+            jobs[job_id] = JobStatus(
+                job_id=job_id, status="failed",
+                error=str(e), current_stage="failed"
+            )
             if db:
                 await db.update_status(job_id, "failed")
 

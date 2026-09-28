@@ -48,3 +48,4 @@ backend/data/
 # Database
 *.db
 *.sqlite3
+data/
