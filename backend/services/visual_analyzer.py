@@ -28,6 +28,7 @@ class VisualAnalyzer:
             # Determine precision and optimal device
             dtype = torch.float32
             qwen_device = self.device
+            attn_impl = "sdpa" # Default
 
             if self.device == "cuda":
                 dtype = torch.bfloat16
@@ -35,13 +36,15 @@ class VisualAnalyzer:
                 # Allow Qwen to use Mac GPU (MPS) even if global config is CPU (for Whisper)
                 dtype = torch.float16
                 qwen_device = "mps"
+                attn_impl = "eager" # MPS frequently freezes with SDPA/FlashAttention on Qwen-VL
 
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 "Qwen/Qwen2-VL-2B-Instruct", 
-                torch_dtype=dtype
+                torch_dtype=dtype,
+                attn_implementation=attn_impl
             ).to(qwen_device)
             self.processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-2B-Instruct")
-            logger.info(f"Qwen2-VL model loaded successfully on {qwen_device}.")
+            logger.info(f"Qwen2-VL model loaded successfully on {qwen_device} (attn={attn_impl}).")
 
     def _extract_frames(self, video_path: str) -> list[str]:
         """Extracts 1 frame per second from the video using FFmpeg."""
