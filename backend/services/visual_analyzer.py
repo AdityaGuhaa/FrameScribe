@@ -22,23 +22,26 @@ class VisualAnalyzer:
 
     def _load_model(self):
         if self.model is None:
-            logger.info("Loading Qwen2-VL-2B-Instruct model (this may take a moment on first run)...")
+            logger.info("Loading Qwen2-VL-2B-Instruct model...")
             from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
             
-            # Determine precision based on device (bfloat16 for CUDA, float16 for Mac Apple Silicon)
+            # Determine precision and optimal device
             dtype = torch.float32
+            qwen_device = self.device
+
             if self.device == "cuda":
                 dtype = torch.bfloat16
-            elif self.device == "cpu" and torch.backends.mps.is_available():
-                # We fallback to CPU for some ops but can keep model in float16 for memory
+            elif torch.backends.mps.is_available():
+                # Allow Qwen to use Mac GPU (MPS) even if global config is CPU (for Whisper)
                 dtype = torch.float16
+                qwen_device = "mps"
 
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 "Qwen/Qwen2-VL-2B-Instruct", 
                 torch_dtype=dtype
-            ).to(self.device)
+            ).to(qwen_device)
             self.processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-2B-Instruct")
-            logger.info("Qwen2-VL model loaded successfully.")
+            logger.info(f"Qwen2-VL model loaded successfully on {qwen_device}.")
 
     def _extract_frames(self, video_path: str) -> list[str]:
         """Extracts 1 frame per second from the video using FFmpeg."""
