@@ -35,9 +35,8 @@ class VisualAnalyzer:
 
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 "Qwen/Qwen2-VL-2B-Instruct", 
-                torch_dtype=dtype, 
-                device_map="auto"
-            )
+                torch_dtype=dtype
+            ).to(self.device)
             self.processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-2B-Instruct")
             logger.info("Qwen2-VL model loaded successfully.")
 
