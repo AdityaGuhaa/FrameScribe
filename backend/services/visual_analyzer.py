@@ -85,7 +85,7 @@ class VisualAnalyzer:
                 {
                     "role": "user",
                     "content": [
-                        {"type": "image", "image": frame_path},
+                        {"type": "image", "image": frame_path, "max_pixels": 512 * 512},
                         {"type": "text", "text": "Describe what is happening in this image in one brief, literal sentence. Keep it under 10 words. Do not start with 'This is a picture of'."}
                     ]
                 }
