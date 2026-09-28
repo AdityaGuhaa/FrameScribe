@@ -22,7 +22,7 @@
 
 - 🎤 **Accurate speech transcripts** (English + Hindi, with code-switching support)
 - 🗣️ **Speaker identification** (who is speaking when)
-- 🎬 **Scene detection** with key frame extraction
+- 👁️ **Dense Video Captioning** (1 FPS visual analysis via Qwen-VL)
 - 📊 **Structured output** ready for AI tools like Gemini, NotebookLM, and others
 
 The extracted data can be used to generate infographics, B-roll scripts, subtitles, or any downstream content — all without sending your data to the cloud.
@@ -32,7 +32,7 @@ The extracted data can be used to generate infographics, B-roll scripts, subtitl
 | Problem | FrameScribe Solution |
 |---|---|
 | YouTube auto-captions are inaccurate | Whisper large-v3 provides near-human accuracy |
-| No context about *what's happening* visually | Scene detection + key frames capture visual context |
+| No context about *what's happening* visually | Qwen2-VL analyzes the video second-by-second to describe actions |
 | Can't tell who is speaking | Speaker diarization labels each speaker |
 | Data leaves your machine | 100% local processing, your data stays private |
 | Expensive cloud transcription APIs | Completely free after setup |
@@ -43,43 +43,43 @@ The extracted data can be used to generate infographics, B-roll scripts, subtitl
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    FrameScribe Backend                       │
+│                    FrameScribe Backend                  │
 │                                                         │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │              FastAPI Server (:8000)               │   │
-│  │                                                   │   │
-│  │  REST API          WebSocket         API Docs     │   │
-│  │  /api/*           /ws/progress      /docs         │   │
+│  │              FastAPI Server (:8000)              │   │
+│  │                                                  │   │
+│  │  REST API          WebSocket         API Docs    │   │
+│  │  /api/*           /ws/progress      /docs        │   │
 │  └──────────┬───────────────┬───────────────────────┘   │
 │             │               │                           │
 │  ┌──────────▼───────────────▼───────────────────────┐   │
-│  │            Processing Pipeline                    │   │
-│  │                                                   │   │
+│  │            Processing Pipeline                   │   │
+│  │                                                  │   │
 │  │  ┌─────────┐  ┌───────────┐  ┌───────────────┐   │   │
-│  │  │ FFmpeg  │  │  Whisper  │  │  PySceneDetect│   │   │
-│  │  │ Audio   │  │ large-v3  │  │  + OpenCV     │   │   │
-│  │  │ Extract │  │ STT       │  │  Scene Detect │   │   │
+│  │  │ FFmpeg  │  │  Whisper  │  │ FFmpeg (1 FPS)│   │   │
+│  │  │ Audio   │  │ large-v3  │  │ + Qwen2-VL    │   │   │
+│  │  │ Extract │  │ STT       │  │ Dense Captions│   │   │
 │  │  └────┬────┘  └─────┬─────┘  └──────┬────────┘   │   │
-│  │       │             │               │             │   │
-│  │       │      ┌──────┴──────┐        │             │   │
-│  │       │      │  pyannote   │        │             │   │
-│  │       │      │  Speaker    │        │             │   │
-│  │       │      │  Diarize    │        │             │   │
-│  │       │      └──────┬──────┘        │             │   │
-│  │       │             │               │             │   │
-│  │  ┌────▼─────────────▼───────────────▼────────┐    │   │
-│  │  │          Pipeline Merger                   │    │   │
-│  │  │  Combine transcripts + speakers + scenes   │    │   │
-│  │  └─────────────────┬─────────────────────────┘    │   │
-│  │                    │                              │   │
-│  │  ┌─────────────────▼─────────────────────────┐    │   │
-│  │  │           Formatter / Exporter             │    │   │
-│  │  │   JSON │ SRT │ VTT │ TXT │ AI-Ready        │    │   │
-│  │  └────────────────────────────────────────────┘    │   │
-│  └───────────────────────────────────────────────────┘   │
+│  │       │             │               │            │   │
+│  │       │      ┌──────┴──────┐        │            │   │
+│  │       │      │  pyannote   │        │            │   │
+│  │       │      │  Speaker    │        │            │   │
+│  │       │      │  Diarize    │        │            │   │
+│  │       │      └──────┬──────┘        │            │   │
+│  │       │             │               │            │   │
+│  │  ┌────▼─────────────▼───────────────▼────────┐   │   │
+│  │  │          Pipeline Merger                  │   │   │
+│  │  │  Combine transcripts + speakers + visuals │   │   │
+│  │  └─────────────────┬─────────────────────────┘   │   │
+│  │                    │                             │   │
+│  │  ┌─────────────────▼─────────────────────────┐   │   │
+│  │  │           Formatter / Exporter            │   │   │
+│  │  │   JSON │ SRT │ VTT │ TXT │ AI-Ready       │   │   │
+│  │  └───────────────────────────────────────────┘   │   │
+│  └──────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌───────────────┐                                      │
-│  │  SQLite DB    │  Project history & metadata           │
+│  │  SQLite DB    │  Project history & metadata          │
 │  └───────────────┘                                      │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -96,8 +96,8 @@ The pipeline processes a video through **4 sequential stages**, with stages 3a a
 │              │     │                 │     │                              │     │            │
 │  Audio       │────►│  Transcription  │────►│  ┌─ 3a: Speaker Diarize ─┐  │────►│  Merge &   │
 │  Extraction  │     │  (Whisper)      │     │  │   (pyannote-audio)    │  │     │  Enrich    │
-│  (FFmpeg)    │     │                 │     │  ├─ 3b: Scene Detection ─┤  │     │            │
-│              │     │                 │     │  │   (PySceneDetect)     │  │     │            │
+│  (FFmpeg)    │     │                 │     │  ├─ 3b: Visual Analysis ─┤  │     │            │
+│              │     │                 │     │  │ (Qwen2-VL @ 1 FPS)    │  │     │            │
 └──────────────┘     └─────────────────┘     │  └───────────────────────┘  │     └──────┬─────┘
                                              │      (run in parallel)      │            │
                                              └──────────────────────────────┘            ▼
@@ -107,19 +107,18 @@ The pipeline processes a video through **4 sequential stages**, with stages 3a a
 
 ### Stage Details
 
-| Stage | Component | Input | Output | Time Estimate* |
-|---|---|---|---|---|
-| **1. Audio Extraction** | FFmpeg | Video file (MP4, MOV, MKV, AVI, WebM) | 16kHz mono WAV | ~2-5s |
-| **2. Transcription** | faster-whisper (large-v3) | WAV audio | Timestamped text segments with word-level timing | ~0.5-2x real-time |
-| **3a. Speaker Diarization** | pyannote-audio 3.1 | WAV audio | Speaker labels with time ranges | ~0.3x real-time |
-| **3b. Scene Detection** | PySceneDetect + OpenCV | Video file | Scene boundaries + key frame JPGs | ~5-10s |
-| **4. Merge & Enrich** | Pipeline Merger | All above outputs | Enriched `TranscriptResult` | < 1s |
-
-*\*Estimates for a 5-minute video on RTX 4050 / M1 Pro*
+| Stage | Component | Input | Output |
+|---|---|---|---|
+| **1. Audio Extraction** | FFmpeg | Video file (MP4, MOV, MKV, AVI, WebM) | 16kHz mono WAV |
+| **2. Transcription** | faster-whisper (large-v3) | WAV audio | Timestamped text segments with word-level timing |
+| **3a. Speaker Diarization** | pyannote-audio 3.1 | WAV audio | Speaker labels with time ranges |
+| **3b. Visual Analysis** | Qwen2-VL (2B-Instruct) | 1 FPS extracted images | Semantic natural language descriptions merged into visual timelines |
+| **4. Merge & Enrich** | Pipeline Merger | All above outputs | Enriched `TranscriptResult` |
 
 ### Why This Architecture?
 
-- **Decoupled services**: Each service (transcriber, diarizer, scene detector) is independently testable and replaceable
+- **Dense Visual Context**: Instead of just detecting hard cuts, Qwen-VL acts as a narrator, describing the action second-by-second (e.g., "A car driving on a highway").
+- **Decoupled services**: Each service (transcriber, diarizer, visual analyzer) is independently testable and replaceable.
 - **Parallel execution**: Diarization and scene detection don't depend on each other, so they run simultaneously
 - **Lazy loading**: ML models load only on first request, keeping startup fast
 - **Async-first**: All I/O-bound operations are async; CPU-bound ML inference runs in thread pools via `asyncio.to_thread()`

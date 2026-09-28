@@ -8,11 +8,10 @@ from pathlib import Path
 from backend.services.audio_extractor import AudioExtractor
 from backend.services.transcriber import Transcriber
 from backend.services.diarizer import Diarizer
-from backend.services.scene_detector import SceneDetector
 from backend.models.schemas import TranscriptResult, JobStatus
+from backend.services.visual_analyzer import VisualAnalyzer
 
 logger = logging.getLogger(__name__)
-
 
 class Pipeline:
     """Orchestrates the full video processing pipeline.
@@ -20,21 +19,18 @@ class Pipeline:
     Pipeline stages:
     1. Extract audio from video (FFmpeg → 16kHz mono WAV)
     2. Transcribe speech (faster-whisper → timestamped segments)
-    3. Diarize speakers + Detect scenes (in parallel)
+    3. Diarize speakers + Visual Analysis (in parallel)
     4. Merge all results into enriched TranscriptResult
     """
 
     def __init__(self, config):
-        """Initialize pipeline with all processing services.
-        
-        Args:
-            config: Config object with audio_dir, frames_dir, model_size, device, hf_token
-        """
+        """Initialize pipeline with all processing services."""
         self.config = config
         self.audio_extractor = AudioExtractor(output_dir=config.audio_dir)
         self.transcriber = Transcriber(model_size=config.model_size, device=config.device)
         self.diarizer = Diarizer(hf_token=config.hf_token)
-        self.scene_detector = SceneDetector(output_dir=config.frames_dir)
+        # Use VisualAnalyzer instead of PySceneDetect
+        self.scene_detector = VisualAnalyzer(output_dir=config.frames_dir, device=config.device)
 
     async def process(self, video_path: str, job_id: str, status_callback=None) -> TranscriptResult:
         """Run the full processing pipeline on a video file.
